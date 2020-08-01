@@ -1,10 +1,9 @@
 package example
 
 import shapeless._
-import Datatype._
 
 object Main extends App {
-  println(Datatype.get[Parent])
+  println(datatype.get[Parent])
 }
 
 sealed trait Parent

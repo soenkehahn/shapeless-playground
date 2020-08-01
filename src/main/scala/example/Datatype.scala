@@ -3,35 +3,53 @@ package example
 import shapeless._
 import shapeless.labelled._
 
-object Datatype {
+object datatype {
+  final case class Variant(name: String, fields: Seq[String])
+
+  def get[T](implicit variants: Variants[T]): Seq[Variant] =
+    variants.variants
+
+  final case class Variants[T](variants: Seq[Variant]) {
+    def cast[U]: Variants[U] = Variants(this.variants)
+  }
+
   implicit def genericToDatatype[T, R](implicit
       generic: LabelledGeneric.Aux[T, R],
-      toDatatype: Datatype[R],
-  ): Datatype[T] = toDatatype.cast
+      variants: Variants[R],
+  ): Variants[T] = variants.cast
+
+  implicit def cconsToDatatype[
+      VariantName <: Symbol,
+      Variant,
+      Tail <: Coproduct,
+  ](implicit
+      witness: Witness.Aux[VariantName],
+      headFields: Fields[Variant],
+      tailVariants: Variants[Tail],
+  ): Variants[FieldType[VariantName, Variant] :+: Tail] =
+    Variants(
+      tailVariants.variants.prepended(
+        Variant(witness.value.name, headFields.fields),
+      ),
+    )
+
+  implicit def cnilToDatatype: Variants[CNil] = Variants(Seq.empty)
+
+  final case class Fields[T](fields: Seq[String]) {
+    def cast[U]: Fields[U] = Fields(this.fields)
+  }
+
+  implicit def genericFields[T, R](implicit
+      generic: LabelledGeneric.Aux[T, R],
+      fields: Fields[R],
+  ): Fields[T] = fields.cast
 
   implicit def hconsToDatatype[FieldName <: Symbol, Field, Tail <: HList](
       implicit
       witness: Witness.Aux[FieldName],
-      tailToDatatype: Datatype[Tail],
-  ): Datatype[FieldType[FieldName, Field] :: Tail] =
-    Datatype(Seq(witness.value.name) ++ tailToDatatype.fields)
+      tailFields: Fields[Tail],
+  ): Fields[FieldType[FieldName, Field] :: Tail] =
+    Fields(Seq(witness.value.name) ++ tailFields.fields)
 
-  implicit def hnilToDatatype: Datatype[HNil] = Datatype(Seq.empty)
-
-  implicit def cconsToDatatype[VariantName, Variant, Tail <: Coproduct](implicit
-      headToDatatype: Datatype[Variant],
-      tailToDatatype: Datatype[Tail],
-  ): Datatype[FieldType[VariantName, Variant] :+: Tail] =
-    Datatype(
-      headToDatatype.fields ++ tailToDatatype.fields,
-    )
-
-  implicit def cnilToDatatype: Datatype[CNil] = Datatype(Seq.empty)
-
-  def get[T](implicit toDatatype: Datatype[T]): Datatype[T] =
-    toDatatype
-}
-
-final case class Datatype[T](fields: Seq[String]) {
-  def cast[U]: Datatype[U] = Datatype(this.fields)
+  implicit def hnilToDatatype: Fields[HNil] = Fields(Seq.empty)
 }
