@@ -3,57 +3,35 @@ package example
 import shapeless._
 import shapeless.labelled._
 
-object ToDatatype {
-  def datatype[T](generic: T): Datatype = ???
-}
-
-trait ToDatatype[T] {
-  def datatype: Datatype
-}
-
 object Datatype {
   implicit def genericToDatatype[T, R](implicit
       generic: LabelledGeneric.Aux[T, R],
-      toDatatype: ToDatatype[R],
-  ): ToDatatype[T] =
-    new ToDatatype[T] {
-      override def datatype: Datatype = toDatatype.datatype
-    }
+      toDatatype: Datatype[R],
+  ): Datatype[T] = toDatatype.cast
 
   implicit def hconsToDatatype[FieldName <: Symbol, Field, Tail <: HList](
       implicit
       witness: Witness.Aux[FieldName],
-      tailToDatatype: ToDatatype[Tail],
-  ): ToDatatype[FieldType[FieldName, Field] :: Tail] =
-    new ToDatatype[FieldType[FieldName, Field] :: Tail] {
-      override def datatype: Datatype =
-        Datatype(Seq(witness.value.name) ++ tailToDatatype.datatype.fields)
-    }
+      tailToDatatype: Datatype[Tail],
+  ): Datatype[FieldType[FieldName, Field] :: Tail] =
+    Datatype(Seq(witness.value.name) ++ tailToDatatype.fields)
 
-  implicit def hnilToDatatype: ToDatatype[HNil] =
-    new ToDatatype[HNil] {
-      override def datatype = Datatype(Seq.empty)
-    }
+  implicit def hnilToDatatype: Datatype[HNil] = Datatype(Seq.empty)
 
   implicit def cconsToDatatype[VariantName, Variant, Tail <: Coproduct](implicit
-      headToDatatype: ToDatatype[Variant],
-      tailToDatatype: ToDatatype[Tail],
-  ): ToDatatype[FieldType[VariantName, Variant] :+: Tail] =
-    new ToDatatype[FieldType[VariantName, Variant] :+: Tail] {
-      override def datatype: Datatype =
-        Datatype(
-          headToDatatype.datatype.fields ++ tailToDatatype.datatype.fields,
-        )
-    }
+      headToDatatype: Datatype[Variant],
+      tailToDatatype: Datatype[Tail],
+  ): Datatype[FieldType[VariantName, Variant] :+: Tail] =
+    Datatype(
+      headToDatatype.fields ++ tailToDatatype.fields,
+    )
 
-  implicit def cnilToDatatype: ToDatatype[CNil] =
-    new ToDatatype[CNil] {
-      override def datatype: Datatype = Datatype(Seq.empty)
-    }
+  implicit def cnilToDatatype: Datatype[CNil] = Datatype(Seq.empty)
 
-  def get[T](implicit toDatatype: ToDatatype[T]): Datatype = {
-    toDatatype.datatype
-  }
+  def get[T](implicit toDatatype: Datatype[T]): Datatype[T] =
+    toDatatype
 }
 
-final case class Datatype(fields: Seq[String])
+final case class Datatype[T](fields: Seq[String]) {
+  def cast[U]: Datatype[U] = Datatype(this.fields)
+}
