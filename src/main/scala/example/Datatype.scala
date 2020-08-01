@@ -1,7 +1,16 @@
 package example
 
-import shapeless._
-import shapeless.labelled._
+import shapeless.{
+  :+:,
+  ::,
+  CNil,
+  Coproduct,
+  HList,
+  HNil,
+  LabelledGeneric,
+  Witness,
+}
+import shapeless.labelled.FieldType
 
 object datatype {
   final case class Variant(name: String, fields: Seq[String])

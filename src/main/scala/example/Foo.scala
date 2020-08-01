@@ -1,7 +1,5 @@
 package example
 
-import shapeless._
-
 object Main extends App {
   println(datatype.get[Parent])
 }
